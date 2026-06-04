@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -192,7 +193,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildPlacesList() {
+    Widget _buildPlacesList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -219,82 +220,95 @@ class _HomeScreenState extends State<HomeScreen> {
           padding: const EdgeInsets.symmetric(horizontal: 20.0),
           itemBuilder: (context, index) {
             final place = _mockPlaces[index];
-            return Container(
-              margin: const EdgeInsets.only(bottom: 16.0),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.04),
-                    blurRadius: 12,
-                    offset: const Offset(0, 6),
+            
+            // TAMBAHAN: Bungkus Container dengan GestureDetector
+            return GestureDetector(
+              onTap: () {
+                // TAMBAHAN: Navigasi ke DetailScreen
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => DetailScreen(place: place),
                   ),
-                ],
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Row(
-                  children: [
-                    // Area Gambar Placeholder yang lebih modern
-                    Container(
-                      width: 90,
-                      height: 90,
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                      child: const Icon(Icons.storefront_rounded, color: Colors.blueAccent, size: 40),
-                    ),
-                    const SizedBox(width: 16),
-                    // Area Teks
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.blue[50],
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              place['category'],
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueAccent),
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            place['name'],
-                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 8),
-                          Row(
-                            children: [
-                              const Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 16),
-                              const SizedBox(width: 4),
-                              Text(
-                                place['distance'],
-                                style: const TextStyle(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w500),
-                              ),
-                              const Spacer(),
-                              const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
-                              const SizedBox(width: 4),
-                              Text(
-                                place['rating'].toString(),
-                                style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
+                );
+              },
+              child: Container(
+                margin: const EdgeInsets.only(bottom: 16.0),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.04),
+                      blurRadius: 12,
+                      offset: const Offset(0, 6),
                     ),
                   ],
                 ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: Row(
+                    children: [
+                      // Area Gambar Placeholder yang lebih modern
+                      Container(
+                        width: 90,
+                        height: 90,
+                        decoration: BoxDecoration(
+                          color: Colors.blue[50],
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: const Icon(Icons.storefront_rounded, color: Colors.blueAccent, size: 40),
+                      ),
+                      const SizedBox(width: 16),
+                      // Area Teks
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.blue[50],
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                place['category'],
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              place['name'],
+                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 8),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 16),
+                                const SizedBox(width: 4),
+                                Text(
+                                  place['distance'],
+                                  style: const TextStyle(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w500),
+                                ),
+                                const Spacer(),
+                                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
+                                const SizedBox(width: 4),
+                                Text(
+                                  place['rating'].toString(),
+                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            );
+            ); // Akhir dari GestureDetector
           },
         ),
         const SizedBox(height: 24), // Spacing ekstra di bawah
