@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -78,7 +79,7 @@ class _MapScreenState extends State<MapScreen> {
     });
   }
 
-  // Desain Bottom Sheet Modern (Tetap dipertahankan karena desainnya sudah optimal)
+// Desain Bottom Sheet Modern
   void _showPlaceBottomSheet(Map<String, dynamic> place) {
     showModalBottomSheet(
       context: context,
@@ -152,12 +153,21 @@ class _MapScreenState extends State<MapScreen> {
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
+                  // UBAHAN: Ganti fungsi onPressed di sini
                   onPressed: () {
-                    // TODO: Implementasi url_launcher untuk rute
+                    Navigator.pop(context); // tutup bottom sheet
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => DetailScreen(place: place),
+                      ),
+                    );
                   },
-                  icon: const Icon(Icons.directions_rounded, color: Colors.white),
+                  // UBAHAN: Ganti ikon agar lebih sesuai dengan "Detail"
+                  icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
+                  // UBAHAN: Ganti teks label
                   label: const Text(
-                    'Buka Rute Navigasi',
+                    'Lihat Detail Tempat',
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
                   ),
                   style: ElevatedButton.styleFrom(
