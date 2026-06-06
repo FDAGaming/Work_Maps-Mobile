@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'detail_screen.dart';
+import 'favorite_screen.dart';
+
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -41,13 +43,32 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  @override
+ @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), // Warna abu-abu super terang yang lebih modern
-      body: SafeArea(
+      backgroundColor: const Color(0xFFF8F9FA), 
+      // LOGIKA TAB SWITCHING: Jika index 2 (Favorit) diklik, buka layar Favorit
+      body: _selectedIndex == 2 
+          ? const FavoriteScreen() 
+          : _buildHomeBody(), // Jika tidak, tampilkan layar beranda utama
+      bottomNavigationBar: _buildBottomNav(),
+    );
+  }
+
+  // Memisahkan body Home agar bisa ditukar dengan layar Favorit
+  Widget _buildHomeBody() {
+    return RefreshIndicator(
+      color: Colors.blueAccent,
+      // Logika sementara (dummy) karena belum ada API sungguhan
+      onRefresh: () async {
+        await Future.delayed(const Duration(seconds: 1));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data diperbarui!')),
+        );
+      },
+      child: SafeArea(
         child: SingleChildScrollView(
-          physics: const BouncingScrollPhysics(), // Animasi scroll lebih mulus ala iOS
+          physics: const AlwaysScrollableScrollPhysics(), // Wajib AlwaysScrollable agar bisa di-pull
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -59,7 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
-      bottomNavigationBar: _buildBottomNav(),
     );
   }
 
