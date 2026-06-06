@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class DetailScreen extends StatefulWidget {
   final Map<String, dynamic> place;
@@ -46,6 +47,35 @@ class _DetailScreenState extends State<DetailScreen> {
     {'icon': Icons.no_drinks_rounded, 'label': 'Non-Smoking'},
     {'icon': Icons.accessible_rounded, 'label': 'Akses Difabel'},
   ];
+
+  Future<void> _openNavigation(double lat, double lng) async {
+    // 1. Skema URI khusus untuk memaksa buka aplikasi Google Maps di Android dalam mode "Direction" (d)
+    final Uri googleMapsUrl = Uri.parse("google.navigation:q=$lat,$lng&mode=d");
+
+    // 2. Skema URI fallback jika Google Maps App tidak terinstal (buka via browser)
+    final Uri fallbackUrl = Uri.parse("https://www.google.com/maps/dir/?api=1&destination=$lat,$lng");
+
+    try {
+      if (await canLaunchUrl(googleMapsUrl)) {
+        await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
+      } else if (await canLaunchUrl(fallbackUrl)) {
+        await launchUrl(fallbackUrl, mode: LaunchMode.externalApplication);
+      } else {
+        throw 'Tidak dapat menemukan aplikasi peta.';
+      }
+    } catch (e) {
+      // Penuhi syarat Error Handling dari dokumen proyek
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Gagal membuka rute. Pastikan perangkat Anda memiliki aplikasi peta/browser.'),
+          backgroundColor: Colors.redAccent,
+          behavior: SnackBarBehavior.floating,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -545,8 +575,19 @@ class _DetailScreenState extends State<DetailScreen> {
             child: SizedBox(
               height: 52,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  // TODO: Integrasikan url_launcher untuk membuka Google Maps / OSM
+               onPressed: () {
+                  // Pastikan Anda memparsing latitude dan longitude dari Map place
+                  // Berikan nilai default aman (misal 0.0) jika data rusak agar tidak force close
+                  final double lat = (widget.place['lat'] as num?)?.toDouble() ?? 0.0;
+                  final double lng = (widget.place['lng'] as num?)?.toDouble() ?? 0.0;
+                  
+                  if (lat != 0.0 && lng != 0.0) {
+                    _openNavigation(lat, lng);
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Data koordinat lokasi ini tidak valid.')),
+                    );
+                  }
                 },
                 icon: const Icon(Icons.directions_rounded, color: Colors.white),
                 label: const Text(

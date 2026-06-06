@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'detail_screen.dart';
+import 'package:geolocator/geolocator.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -18,6 +19,9 @@ class _MapScreenState extends State<MapScreen> {
   final LatLng _initialPosition = const LatLng(-7.2673, 112.7521);
   
   List<Marker> _markers = [];
+  
+  // Variabel reaktif untuk menyimpan posisi GPS terbaru pengguna
+  LatLng? _currentUserPosition;
 
   @override
   void initState() {
@@ -186,6 +190,68 @@ class _MapScreenState extends State<MapScreen> {
       },
     );
   }
+  // Fungsi utama untuk mengecek izin dan mengambil lokasi GPS pengguna
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // 1. Cek apakah layanan GPS di HP menyala
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Layanan GPS mati. Harap nyalakan GPS Anda.')),
+      );
+      return;
+    }
+
+    // 2. Cek izin akses lokasi aplikasi
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Izin akses lokasi ditolak.')),
+        );
+        return;
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Izin lokasi ditolak permanen. Buka pengaturan HP Anda.')),
+      );
+      return;
+    }
+
+    // 3. Jika izin diberikan, ambil koordinat saat ini
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Mencari lokasi Anda...')),
+    );
+
+    try {
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // Simpan koordinat baru ke dalam state aplikasi
+      setState(() {
+        _currentUserPosition = LatLng(position.latitude, position.longitude);
+      });
+
+      // Terbangkan kamera peta ke lokasi pengguna
+      _mapController.move(_currentUserPosition!, 17.0);
+
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal mendapatkan titik koordinat.')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -200,14 +266,58 @@ class _MapScreenState extends State<MapScreen> {
               initialZoom: 15.0,
             ),
             children: [
-              // Mengambil data gambar peta (Tiles) dari server gratis OSM
               TileLayer(
                 urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                userAgentPackageName: 'com.example.work_maps',
+                userAgentPackageName: 'com.direktori_kampus.work_maps',
+                retinaMode: true,
+                maxZoom: 19,
               ),
-              // Lapisan Marker di atas peta
+
+              // LAYER 1: Lingkaran Radius Akurasi GPS (Hanya muncul jika GPS aktif)
+              // LAYER 1: Lingkaran Radius Akurasi GPS (Hanya muncul jika GPS aktif)
+              if (_currentUserPosition != null)
+                CircleLayer(
+                  circles: [
+                    CircleMarker(
+                      point: _currentUserPosition!,
+                      radius: 60,
+                      useRadiusInMeter: true,
+                      // Menggunakan withAlpha (0-255) sebagai ganti withOpacity yang sudah usang
+                      color: Colors.blueAccent.withAlpha(38), // Setara opacity 0.15
+                      borderColor: Colors.blueAccent.withAlpha(102), // Setara opacity 0.4
+                      borderStrokeWidth: 1, // NAMA PARAMETER BARU pengganti borderWidth
+                    ),
+                  ],
+                ),
+
+              // LAYER 2: Lapisan Seluruh Marker
               MarkerLayer(
-                markers: _markers,
+                markers: [
+                  // Memasukkan seluruh marker tempat dari database/mock API
+                  ..._markers, 
+
+                  // Menyelipkan Marker Lokasi Kita (Titik Biru Berpendar)
+                  if (_currentUserPosition != null)
+                    Marker(
+                      point: _currentUserPosition!,
+                      width: 26,
+                      height: 26,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.blueAccent, // Inti titik biru
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.white, width: 3), // Bingkai putih tebal
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.blueAccent.withOpacity(0.4),
+                              blurRadius: 10,
+                              spreadRadius: 4, // Efek pendaran cahaya di luar bingkai
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ],
           ),
@@ -236,12 +346,9 @@ class _MapScreenState extends State<MapScreen> {
         ],
       ),
       
-      // FAB untuk menuju lokasi GPS
+      // FAB untuk menuju lokasi GPS aktual
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          // TODO: Nanti integrasikan geolocator di sini, sementara kita arahkan ulang ke tengah peta
-          _mapController.move(_initialPosition, 16.0);
-        },
+        onPressed: _getCurrentLocation, // Panggil fungsi pelacak di sini
         backgroundColor: Colors.white,
         child: const Icon(Icons.my_location_rounded, color: Colors.blueAccent),
       ),
