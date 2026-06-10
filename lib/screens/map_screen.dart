@@ -7,7 +7,7 @@ import '../services/api_service.dart';
 import 'detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
-  const MapScreen({Key? key}) : super(key: key);
+  const MapScreen({super.key});
 
   @override
   State<MapScreen> createState() => _MapScreenState();

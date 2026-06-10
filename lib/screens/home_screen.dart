@@ -8,7 +8,7 @@ import 'map_screen.dart';
 import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
-  const HomeScreen({Key? key}) : super(key: key);
+  const HomeScreen({super.key});
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -23,6 +23,7 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loadingCategories = true;
   bool _loadingPlaces = true;
   String _searchQuery = '';
+  String? _userName;
 
   final _searchController = TextEditingController();
   final _api = ApiService();
@@ -31,12 +32,23 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _loadUserName();
   }
 
   @override
   void dispose() {
     _searchController.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadUserName() async {
+    if (!_api.isLoggedIn) return;
+    try {
+      final user = await _api.getMe();
+      if (mounted && user != null) {
+        setState(() => _userName = user['name']);
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadData() async {
@@ -128,26 +140,39 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildHeader() {
+    final greeting = _api.isLoggedIn && _userName != null
+        ? 'Halo, $_userName! 👋'
+        : 'Halo, Selamat Datang! 👋';
+    final initials = _userName != null && _userName!.isNotEmpty
+        ? _userName!.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        : 'U';
+    final avatarUrl = 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(initials)}&background=0D8ABC&color=fff';
+
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: const [
-              Text('Halo, Selamat Datang! 👋',
-                  style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
-              SizedBox(height: 4),
-              Text('Mau nugas di mana hari ini?',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(greeting,
+                    style: const TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
+                const SizedBox(height: 4),
+                const Text('Mau nugas di mana hari ini?',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+              ],
+            ),
           ),
-          CircleAvatar(
-            radius: 24,
-            backgroundColor: Colors.blue[100],
-            backgroundImage: const NetworkImage(
-                'https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff'),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () => setState(() => _selectedIndex = 3),
+            child: CircleAvatar(
+              radius: 24,
+              backgroundColor: Colors.blue[100],
+              backgroundImage: NetworkImage(avatarUrl),
+            ),
           ),
         ],
       ),

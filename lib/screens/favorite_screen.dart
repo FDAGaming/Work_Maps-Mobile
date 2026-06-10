@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import '../models/place_model.dart';
 import '../services/api_service.dart';
 import 'detail_screen.dart';
+import 'login_screen.dart';
 
 class FavoriteScreen extends StatefulWidget {
-  const FavoriteScreen({Key? key}) : super(key: key);
+  const FavoriteScreen({super.key});
 
   @override
   State<FavoriteScreen> createState() => _FavoriteScreenState();
@@ -100,6 +101,28 @@ class _FavoriteScreenState extends State<FavoriteScreen> {
               'Login untuk melihat dan menyimpan tempat favorit Anda.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 14, color: Colors.grey),
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              height: 50,
+              child: ElevatedButton(
+                onPressed: () async {
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginScreen()),
+                  );
+                  // Reload setelah kembali dari login
+                  _loadFavorites();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blueAccent,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                ),
+                child: const Text('Masuk Sekarang',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+              ),
             ),
           ],
         ),

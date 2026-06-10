@@ -3,7 +3,7 @@ import '../services/api_service.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -32,7 +32,8 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await _api.login(_emailCtrl.text.trim(), _passCtrl.text);
       if (!mounted) return;
       if (_api.isLoggedIn) {
-        Navigator.pushReplacementNamed(context, '/');
+        // Selalu kembali ke halaman utama setelah login
+        Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
       } else {
         _showError(res['message'] ?? 'Login gagal');
       }
