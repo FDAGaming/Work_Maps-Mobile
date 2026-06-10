@@ -5,6 +5,7 @@ import 'package:work_maps/screens/map_screen.dart';
 import 'package:work_maps/screens/register_screen.dart';
 import 'package:work_maps/screens/favorite_screen.dart';
 import 'package:work_maps/screens/profile_screen.dart';
+import 'package:work_maps/screens/admin/admin_screen.dart';
 
 
 void main() {
@@ -30,6 +31,7 @@ class WorkspaceApp extends StatelessWidget {
         '/register': (context) => const RegisterScreen(),
         '/favorites': (context) => const FavoriteScreen(),
         '/profile': (context) => const ProfileScreen(),
+        '/admin': (context) => const AdminScreen(),
       },
     );
   }

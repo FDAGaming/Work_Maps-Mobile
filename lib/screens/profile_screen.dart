@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import 'admin/admin_screen.dart';
 import 'login_screen.dart';
 import 'register_screen.dart';
 
@@ -16,6 +17,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _loading = true;
   int _favoriteCount = 0;
   int _reviewCount = 0;
+
+  bool get _isAdmin => _user?['role'] == 'admin';
 
   @override
   void initState() {
@@ -58,6 +61,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  void _confirmLogout() {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Keluar',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        content: const Text('Yakin ingin keluar dari akun?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              _logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child:
+                const Text('Keluar', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return SafeArea(
@@ -94,12 +128,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: Colors.blue[50], shape: BoxShape.circle),
-              child: const Icon(Icons.person_outline_rounded, size: 60, color: Colors.blueAccent),
+              decoration:
+                  BoxDecoration(color: Colors.blue[50], shape: BoxShape.circle),
+              child: const Icon(Icons.person_outline_rounded,
+                  size: 60, color: Colors.blueAccent),
             ),
             const SizedBox(height: 24),
             const Text('Belum Masuk',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+                style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142))),
             const SizedBox(height: 8),
             const Text(
               'Masuk untuk mengakses profil dan fitur lengkap aplikasi.',
@@ -121,11 +160,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blueAccent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                   elevation: 0,
                 ),
                 child: const Text('Masuk Sekarang',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white)),
               ),
             ),
             const SizedBox(height: 12),
@@ -139,10 +182,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
                 style: OutlinedButton.styleFrom(
                   side: const BorderSide(color: Colors.blueAccent),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
                 ),
                 child: const Text('Daftar Akun',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
+                    style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blueAccent)),
               ),
             ),
           ],
@@ -155,7 +202,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final name = _user?['name'] ?? 'Pengguna';
     final email = _user?['email'] ?? '-';
     final initials = name.isNotEmpty
-        ? name.trim().split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
+        ? name
+            .trim()
+            .split(' ')
+            .map((w) => w.isNotEmpty ? w[0] : '')
+            .take(2)
+            .join()
+            .toUpperCase()
         : 'U';
     return Container(
       width: double.infinity,
@@ -177,15 +230,36 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 'https://ui-avatars.com/api/?name=${Uri.encodeComponent(initials)}&background=0D8ABC&color=fff&size=200'),
           ),
           const SizedBox(height: 14),
-          Text(
-            name,
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
-          ),
+          Text(name,
+              style: const TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white)),
           const SizedBox(height: 4),
-          Text(
-            email,
-            style: const TextStyle(fontSize: 14, color: Colors.white70),
-          ),
+          Text(email,
+              style: const TextStyle(fontSize: 14, color: Colors.white70)),
+          if (_isAdmin) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.2),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.admin_panel_settings_rounded,
+                      color: Colors.white, size: 14),
+                  SizedBox(width: 4),
+                  Text('Administrator',
+                      style:
+                          TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
@@ -196,9 +270,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Row(
         children: [
-          _statCard(_favoriteCount.toString(), 'Favorit', Icons.bookmark_rounded),
+          _statCard(_favoriteCount.toString(), 'Favorit',
+              Icons.bookmark_rounded),
           const SizedBox(width: 12),
-          _statCard(_reviewCount.toString(), 'Ulasan', Icons.star_rounded),
+          _statCard(
+              _reviewCount.toString(), 'Ulasan', Icons.star_rounded),
         ],
       ),
     );
@@ -212,7 +288,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 10,
+                offset: const Offset(0, 4))
           ],
         ),
         child: Column(
@@ -220,7 +299,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Icon(icon, color: Colors.blueAccent, size: 22),
             const SizedBox(height: 6),
             Text(value,
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
+                style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF2D3142))),
             const SizedBox(height: 2),
             Text(label, style: const TextStyle(fontSize: 11, color: Colors.grey)),
           ],
@@ -235,50 +317,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Admin panel — hanya tampil jika role admin
+          if (_isAdmin) ...[
+            const Text('Admin',
+                style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.grey)),
+            const SizedBox(height: 10),
+            _menuCard([
+              _MenuItem(
+                Icons.admin_panel_settings_rounded,
+                'Panel Admin',
+                Colors.blueAccent,
+                onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const AdminScreen()),
+                ),
+              ),
+            ]),
+            const SizedBox(height: 20),
+          ],
+
           const Text('Akun',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey)),
           const SizedBox(height: 10),
           _menuCard([
-            _MenuItem(Icons.person_outline_rounded, 'Edit Profil', Colors.blueAccent, onTap: () {}),
-            _MenuItem(Icons.lock_outline_rounded, 'Ubah Password', Colors.orange, onTap: () {}),
+            _MenuItem(Icons.person_outline_rounded, 'Edit Profil',
+                Colors.blueAccent,
+                onTap: () {}),
+            _MenuItem(Icons.lock_outline_rounded, 'Ubah Password',
+                Colors.orange,
+                onTap: () {}),
           ]),
           const SizedBox(height: 20),
           const Text('Lainnya',
-              style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey)),
           const SizedBox(height: 10),
           _menuCard([
-            _MenuItem(Icons.info_outline_rounded, 'Tentang Aplikasi', Colors.teal, onTap: () {}),
-            _MenuItem(Icons.help_outline_rounded, 'Bantuan', Colors.green, onTap: () {}),
-            _MenuItem(Icons.logout_rounded, 'Keluar', Colors.red, onTap: _confirmLogout),
+            _MenuItem(Icons.info_outline_rounded, 'Tentang Aplikasi',
+                Colors.teal,
+                onTap: () {}),
+            _MenuItem(
+                Icons.help_outline_rounded, 'Bantuan', Colors.green,
+                onTap: () {}),
+            _MenuItem(Icons.logout_rounded, 'Keluar', Colors.red,
+                onTap: _confirmLogout),
           ]),
-        ],
-      ),
-    );
-  }
-
-  void _confirmLogout() {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Keluar', style: TextStyle(fontWeight: FontWeight.bold)),
-        content: const Text('Yakin ingin keluar dari akun?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Batal', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              _logout();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-            child: const Text('Keluar', style: TextStyle(color: Colors.white)),
-          ),
         ],
       ),
     );
@@ -290,7 +381,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.04), blurRadius: 10, offset: const Offset(0, 4)),
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.04),
+              blurRadius: 10,
+              offset: const Offset(0, 4))
         ],
       ),
       child: Column(
@@ -313,7 +407,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
-                      color: item.label == 'Keluar' ? Colors.red : const Color(0xFF2D3142),
+                      color: item.label == 'Keluar'
+                          ? Colors.red
+                          : const Color(0xFF2D3142),
                     )),
                 trailing: Icon(Icons.chevron_right_rounded,
                     color: Colors.grey[300], size: 20),

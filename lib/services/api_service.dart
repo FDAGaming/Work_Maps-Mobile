@@ -216,4 +216,127 @@ class ApiService {
     }
     return false;
   }
+
+  // ── ADMIN ─────────────────────────────────────────────────────────────────
+
+  Future<Map<String, dynamic>> getAdminStats() async {
+    final res =
+        await http.get(Uri.parse('$baseUrl/admin/stats'), headers: _headers);
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body)['data'] as Map<String, dynamic>;
+    }
+    throw Exception('Gagal memuat statistik');
+  }
+
+  Future<List<dynamic>> getAdminUsers() async {
+    final res =
+        await http.get(Uri.parse('$baseUrl/admin/users'), headers: _headers);
+    if (res.statusCode == 200) {
+      return jsonDecode(res.body)['data'] as List<dynamic>;
+    }
+    throw Exception('Gagal memuat daftar user');
+  }
+
+  Future<bool> updateUserRole(int userId, String role) async {
+    final res = await http.put(
+      Uri.parse('$baseUrl/admin/users/$userId/role'),
+      headers: _headers,
+      body: jsonEncode({'role': role}),
+    );
+    return res.statusCode == 200;
+  }
+
+  Future<bool> toggleUserActive(int userId) async {
+    final res = await http.put(
+        Uri.parse('$baseUrl/admin/users/$userId/toggle'),
+        headers: _headers);
+    return res.statusCode == 200;
+  }
+
+  Future<Map<String, dynamic>> getAdminPlaces({
+    int page = 1,
+    int limit = 20,
+    String? search,
+  }) async {
+    final params = {
+      'page': page.toString(),
+      'limit': limit.toString(),
+      if (search != null && search.isNotEmpty) 'search': search,
+    };
+    final uri =
+        Uri.parse('$baseUrl/admin/places').replace(queryParameters: params);
+    final res = await http.get(uri, headers: _headers);
+    if (res.statusCode == 200) {
+      final body = jsonDecode(res.body);
+      return {
+        'places': (body['data'] as List)
+            .map((e) => PlaceModel.fromJson(e))
+            .toList(),
+        'meta': body['meta'],
+      };
+    }
+    throw Exception('Gagal memuat tempat admin');
+  }
+
+  Future<bool> verifyPlace(int placeId) async {
+    final res = await http.put(
+        Uri.parse('$baseUrl/admin/places/$placeId/verify'),
+        headers: _headers);
+    return res.statusCode == 200;
+  }
+
+  Future<bool> createPlace(Map<String, dynamic> data) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/places'),
+      headers: _headers,
+      body: jsonEncode(data),
+    );
+    return res.statusCode == 201;
+  }
+
+  Future<bool> updatePlace(int id, Map<String, dynamic> data) async {
+    final res = await http.put(
+      Uri.parse('$baseUrl/places/$id'),
+      headers: _headers,
+      body: jsonEncode(data),
+    );
+    return res.statusCode == 200;
+  }
+
+  Future<bool> deletePlace(int id) async {
+    final res =
+        await http.delete(Uri.parse('$baseUrl/places/$id'), headers: _headers);
+    return res.statusCode == 200;
+  }
+
+  Future<bool> createCategory(String name, String icon, String color) async {
+    final res = await http.post(
+      Uri.parse('$baseUrl/categories'),
+      headers: _headers,
+      body: jsonEncode({'name': name, 'icon': icon, 'color': color}),
+    );
+    return res.statusCode == 201;
+  }
+
+  Future<bool> updateCategory(
+      int id, String name, String icon, String color) async {
+    final res = await http.put(
+      Uri.parse('$baseUrl/categories/$id'),
+      headers: _headers,
+      body: jsonEncode({'name': name, 'icon': icon, 'color': color}),
+    );
+    return res.statusCode == 200;
+  }
+
+  Future<bool> deleteCategory(int id) async {
+    final res = await http.delete(
+        Uri.parse('$baseUrl/categories/$id'), headers: _headers);
+    return res.statusCode == 200;
+  }
+
+  Future<bool> deleteReview(int reviewId) async {
+    final res = await http.delete(
+        Uri.parse('$baseUrl/reviews/$reviewId'), headers: _headers);
+    return res.statusCode == 200;
+  }
 }
