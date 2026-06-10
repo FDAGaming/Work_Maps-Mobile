@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-import 'detail_screen.dart';
 import 'package:geolocator/geolocator.dart';
+import '../models/place_model.dart';
+import '../services/api_service.dart';
+import 'detail_screen.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({Key? key}) : super(key: key);
@@ -12,79 +14,92 @@ class MapScreen extends StatefulWidget {
 }
 
 class _MapScreenState extends State<MapScreen> {
-  // Controller khusus untuk OpenStreetMap
   final MapController _mapController = MapController();
-  
-  // Titik tengah awal (Contoh: Surabaya)
-  final LatLng _initialPosition = const LatLng(-7.2673, 112.7521);
-  
-  List<Marker> _markers = [];
-  
-  // Variabel reaktif untuk menyimpan posisi GPS terbaru pengguna
+  final LatLng _initialPosition = const LatLng(-7.5555, 112.2270);
+
+  List<PlaceModel> _places = [];
+  bool _loading = true;
   LatLng? _currentUserPosition;
+  final _api = ApiService();
 
   @override
   void initState() {
     super.initState();
-    _loadMockMarkers();
+    _loadPlaces();
   }
 
-  // Memuat data mock menjadi Marker Widget
-  void _loadMockMarkers() {
-    final mockPlaces = [
-      {
-        'id': '1',
-        'name': 'Kafe Literasi',
-        'category': 'Cafe',
-        'lat': -7.2680,
-        'lng': 112.7510,
-        'distance': '450 m',
-        'rating': 4.8
-      },
-      {
-        'id': '2',
-        'name': 'Fotokopi Jaya',
-        'category': 'Fotokopi',
-        'lat': -7.2660,
-        'lng': 112.7535,
-        'distance': '120 m',
-        'rating': 4.5
-      },
-    ];
+  Future<void> _loadPlaces({double? lat, double? lng}) async {
+    setState(() => _loading = true);
+    try {
+      List<PlaceModel> places;
+      if (lat != null && lng != null) {
+        places = await _api.getNearby(lat: lat, lng: lng, limit: 50);
+      } else {
+        final result = await _api.getPlaces(limit: 50);
+        places = result['places'] as List<PlaceModel>;
+      }
+      setState(() => _places = places);
+    } catch (_) {
+      setState(() => _places = []);
+    } finally {
+      setState(() => _loading = false);
+    }
+  }
 
-    setState(() {
-      _markers = mockPlaces.map((place) {
-        return Marker(
-          point: LatLng(place['lat'] as double, place['lng'] as double),
-          width: 50,
-          height: 50,
-          // Di flutter_map, marker adalah widget bebas, jadi kita bisa membuatnya sangat kustom
-          child: GestureDetector(
-            onTap: () => _showPlaceBottomSheet(place),
-            child: Column(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: BoxDecoration(
-                    color: Colors.blueAccent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.white, width: 2),
-                    boxShadow: [
-                      BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 6, offset: const Offset(0, 3)),
-                    ],
-                  ),
-                  child: const Icon(Icons.location_on, color: Colors.white, size: 20),
-                ),
-              ],
-            ),
-          ),
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Layanan GPS mati. Harap nyalakan GPS Anda.')),
+      );
+      return;
+    }
+
+    LocationPermission permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Izin akses lokasi ditolak.')),
         );
-      }).toList();
-    });
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Izin lokasi ditolak permanen. Buka pengaturan HP Anda.')),
+      );
+      return;
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Mencari lokasi Anda...')),
+    );
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+      setState(() {
+        _currentUserPosition = LatLng(position.latitude, position.longitude);
+      });
+      _mapController.move(_currentUserPosition!, 16.0);
+      // Reload places terdekat berdasarkan posisi user
+      await _loadPlaces(lat: position.latitude, lng: position.longitude);
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Gagal mendapatkan titik koordinat.')),
+      );
+    }
   }
 
-// Desain Bottom Sheet Modern
-  void _showPlaceBottomSheet(Map<String, dynamic> place) {
+  void _showPlaceBottomSheet(PlaceModel place) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -101,50 +116,49 @@ class _MapScreenState extends State<MapScreen> {
             children: [
               Center(
                 child: Container(
-                  width: 40,
-                  height: 4,
+                  width: 40, height: 4,
                   margin: const EdgeInsets.only(bottom: 20),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+                  decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(10)),
                 ),
               ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Container(
-                    width: 70,
-                    height: 70,
-                    decoration: BoxDecoration(
-                      color: Colors.blue[50],
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: const Icon(Icons.storefront_rounded, color: Colors.blueAccent, size: 32),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(14),
+                    child: place.photoUrl != null
+                        ? Image.network(place.photoUrl!, width: 70, height: 70, fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => _markerPlaceholder(place))
+                        : _markerPlaceholder(place),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          place['name'],
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
-                        ),
+                        Text(place.name,
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
                         const SizedBox(height: 4),
-                        Text(
-                          '${place['category']} • Jarak: ${place['distance']}',
-                          style: const TextStyle(fontSize: 14, color: Colors.black54),
-                        ),
-                        const SizedBox(height: 8),
+                        Text(place.categoryName,
+                            style: const TextStyle(fontSize: 13, color: Colors.blueAccent, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 4),
+                        Text(place.address,
+                            style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                            maxLines: 2, overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 6),
                         Row(
                           children: [
-                            const Icon(Icons.star_rounded, color: Colors.amber, size: 20),
+                            const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
                             const SizedBox(width: 4),
                             Text(
-                              place['rating'].toString(),
-                              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                              place.rating > 0 ? place.rating.toStringAsFixed(1) : 'Baru',
+                              style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
                             ),
+                            if (place.priceRange != null) ...[
+                              const SizedBox(width: 8),
+                              Text('• ${place.priceRange}',
+                                  style: const TextStyle(fontSize: 12, color: Colors.blueAccent)),
+                            ],
                           ],
                         ),
                       ],
@@ -152,33 +166,24 @@ class _MapScreenState extends State<MapScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 20),
               SizedBox(
                 width: double.infinity,
                 height: 50,
                 child: ElevatedButton.icon(
-                  // UBAHAN: Ganti fungsi onPressed di sini
                   onPressed: () {
-                    Navigator.pop(context); // tutup bottom sheet
+                    Navigator.pop(context);
                     Navigator.push(
                       context,
-                      MaterialPageRoute(
-                        builder: (_) => DetailScreen(place: place),
-                      ),
+                      MaterialPageRoute(builder: (_) => DetailScreen(place: place)),
                     );
                   },
-                  // UBAHAN: Ganti ikon agar lebih sesuai dengan "Detail"
                   icon: const Icon(Icons.info_outline_rounded, color: Colors.white),
-                  // UBAHAN: Ganti teks label
-                  label: const Text(
-                    'Lihat Detail Tempat',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
-                  ),
+                  label: const Text('Lihat Detail Tempat',
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.blueAccent,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     elevation: 0,
                   ),
                 ),
@@ -190,75 +195,12 @@ class _MapScreenState extends State<MapScreen> {
       },
     );
   }
-  // Fungsi utama untuk mengecek izin dan mengambil lokasi GPS pengguna
-  Future<void> _getCurrentLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
-
-    // 1. Cek apakah layanan GPS di HP menyala
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Layanan GPS mati. Harap nyalakan GPS Anda.')),
-      );
-      return;
-    }
-
-    // 2. Cek izin akses lokasi aplikasi
-    permission = await Geolocator.checkPermission();
-    if (permission == LocationPermission.denied) {
-      permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Izin akses lokasi ditolak.')),
-        );
-        return;
-      }
-    }
-    
-    if (permission == LocationPermission.deniedForever) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Izin lokasi ditolak permanen. Buka pengaturan HP Anda.')),
-      );
-      return;
-    }
-
-    // 3. Jika izin diberikan, ambil koordinat saat ini
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Mencari lokasi Anda...')),
-    );
-
-    try {
-      Position position = await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
-      );
-
-      // Simpan koordinat baru ke dalam state aplikasi
-      setState(() {
-        _currentUserPosition = LatLng(position.latitude, position.longitude);
-      });
-
-      // Terbangkan kamera peta ke lokasi pengguna
-      _mapController.move(_currentUserPosition!, 17.0);
-
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Gagal mendapatkan titik koordinat.')),
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          // 1. Lapisan Dasar: OpenStreetMap via flutter_map
           FlutterMap(
             mapController: _mapController,
             options: MapOptions(
@@ -272,9 +214,6 @@ class _MapScreenState extends State<MapScreen> {
                 retinaMode: true,
                 maxZoom: 19,
               ),
-
-              // LAYER 1: Lingkaran Radius Akurasi GPS (Hanya muncul jika GPS aktif)
-              // LAYER 1: Lingkaran Radius Akurasi GPS (Hanya muncul jika GPS aktif)
               if (_currentUserPosition != null)
                 CircleLayer(
                   circles: [
@@ -282,21 +221,39 @@ class _MapScreenState extends State<MapScreen> {
                       point: _currentUserPosition!,
                       radius: 60,
                       useRadiusInMeter: true,
-                      // Menggunakan withAlpha (0-255) sebagai ganti withOpacity yang sudah usang
-                      color: Colors.blueAccent.withAlpha(38), // Setara opacity 0.15
-                      borderColor: Colors.blueAccent.withAlpha(102), // Setara opacity 0.4
-                      borderStrokeWidth: 1, // NAMA PARAMETER BARU pengganti borderWidth
+                      color: Colors.blueAccent.withAlpha(38),
+                      borderColor: Colors.blueAccent.withAlpha(102),
+                      borderStrokeWidth: 1,
                     ),
                   ],
                 ),
-
-              // LAYER 2: Lapisan Seluruh Marker
               MarkerLayer(
                 markers: [
-                  // Memasukkan seluruh marker tempat dari database/mock API
-                  ..._markers, 
-
-                  // Menyelipkan Marker Lokasi Kita (Titik Biru Berpendar)
+                  // Marker tempat dari API
+                  ..._places.map((place) => Marker(
+                        point: LatLng(place.lat, place.lng),
+                        width: 50,
+                        height: 50,
+                        child: GestureDetector(
+                          onTap: () => _showPlaceBottomSheet(place),
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: Colors.blueAccent,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: Colors.white, width: 2),
+                              boxShadow: [
+                                BoxShadow(
+                                    color: Colors.black.withOpacity(0.2),
+                                    blurRadius: 6,
+                                    offset: const Offset(0, 3)),
+                              ],
+                            ),
+                            child: const Icon(Icons.location_on, color: Colors.white, size: 20),
+                          ),
+                        ),
+                      )),
+                  // Marker posisi user
                   if (_currentUserPosition != null)
                     Marker(
                       point: _currentUserPosition!,
@@ -304,15 +261,14 @@ class _MapScreenState extends State<MapScreen> {
                       height: 26,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: Colors.blueAccent, // Inti titik biru
+                          color: Colors.blueAccent,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 3), // Bingkai putih tebal
+                          border: Border.all(color: Colors.white, width: 3),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.blueAccent.withOpacity(0.4),
-                              blurRadius: 10,
-                              spreadRadius: 4, // Efek pendaran cahaya di luar bingkai
-                            ),
+                                color: Colors.blueAccent.withOpacity(0.4),
+                                blurRadius: 10,
+                                spreadRadius: 4),
                           ],
                         ),
                       ),
@@ -321,16 +277,15 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ],
           ),
-          
-          // 2. Lapisan Atas: Tombol Back Custom
+
+          // Tombol Back
           SafeArea(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: InkWell(
                 onTap: () => Navigator.pop(context),
                 child: Container(
-                  width: 48,
-                  height: 48,
+                  width: 48, height: 48,
                   decoration: BoxDecoration(
                     color: Colors.white,
                     shape: BoxShape.circle,
@@ -343,15 +298,58 @@ class _MapScreenState extends State<MapScreen> {
               ),
             ),
           ),
+
+          // Loading indicator
+          if (_loading)
+            const Positioned(
+              top: 80,
+              left: 0,
+              right: 0,
+              child: Center(
+                child: Card(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)),
+                        SizedBox(width: 10),
+                        Text('Memuat tempat...', style: TextStyle(fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
         ],
       ),
-      
-      // FAB untuk menuju lokasi GPS aktual
       floatingActionButton: FloatingActionButton(
-        onPressed: _getCurrentLocation, // Panggil fungsi pelacak di sini
+        onPressed: _getCurrentLocation,
         backgroundColor: Colors.white,
         child: const Icon(Icons.my_location_rounded, color: Colors.blueAccent),
       ),
     );
+  }
+
+  Widget _markerPlaceholder(PlaceModel place) {
+    return Container(
+      width: 70, height: 70, color: Colors.blue[50],
+      child: Icon(_getCategoryIcon(place.categoryIcon), color: Colors.blueAccent, size: 28),
+    );
+  }
+
+  IconData _getCategoryIcon(String icon) {
+    switch (icon.toLowerCase()) {
+      case 'coffee': return Icons.local_cafe_rounded;
+      case 'utensils': return Icons.restaurant_rounded;
+      case 'copy': return Icons.print_rounded;
+      case 'credit-card': return Icons.local_atm_rounded;
+      case 'home': return Icons.home_rounded;
+      case 'shopping-bag': return Icons.shopping_bag_rounded;
+      case 'heart': return Icons.local_hospital_rounded;
+      case 'building': return Icons.business_rounded;
+      case 'wind': return Icons.local_laundry_service_rounded;
+      default: return Icons.storefront_rounded;
+    }
   }
 }

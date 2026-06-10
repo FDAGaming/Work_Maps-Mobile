@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import '../models/place_model.dart';
+import '../models/category_model.dart';
+import '../services/api_service.dart';
 import 'detail_screen.dart';
 import 'favorite_screen.dart';
-
+import 'map_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -12,63 +15,92 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   int _selectedIndex = 0;
+  int? _selectedCategoryId;
 
-  // Mock Data
-  final List<Map<String, dynamic>> _mockCategories = [
-    {'name': 'Cafe', 'icon': Icons.local_cafe_rounded},
-    {'name': 'Kantin', 'icon': Icons.restaurant_rounded},
-    {'name': 'Fotokopi', 'icon': Icons.print_rounded},
-    {'name': 'ATM', 'icon': Icons.local_atm_rounded},
-  ];
+  List<CategoryModel> _categories = [];
+  List<PlaceModel> _places = [];
+  bool _loadingCategories = true;
+  bool _loadingPlaces = true;
+  String _searchQuery = '';
 
-  final List<Map<String, dynamic>> _mockPlaces = [
-    {'name': 'Kafe Literasi', 'category': 'Cafe', 'distance': '450 m', 'rating': 4.8},
-    {'name': 'Fotokopi Jaya', 'category': 'Fotokopi', 'distance': '120 m', 'rating': 4.5},
-    {'name': 'Kantin Pusat', 'category': 'Kantin', 'distance': '800 m', 'rating': 4.2},
-  ];
+  final _searchController = TextEditingController();
+  final _api = ApiService();
 
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-    
-    // Logika Navigasi: Jika tombol index 1 (Peta) di Bottom Nav ditekan
-    if (index == 1) {
-      Navigator.pushNamed(context, '/map').then((_) {
-        // Mengembalikan warna icon Bottom Nav ke Home saat kembali dari layar peta
-        setState(() {
-          _selectedIndex = 0;
-        });
-      });
+  @override
+  void initState() {
+    super.initState();
+    _loadData();
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _loadData() async {
+    await Future.wait([_loadCategories(), _loadPlaces()]);
+  }
+
+  Future<void> _loadCategories() async {
+    setState(() => _loadingCategories = true);
+    try {
+      final cats = await _api.getCategories();
+      setState(() => _categories = cats);
+    } catch (_) {
+    } finally {
+      setState(() => _loadingCategories = false);
     }
   }
 
- @override
+  Future<void> _loadPlaces() async {
+    setState(() => _loadingPlaces = true);
+    try {
+      final result = await _api.getPlaces(
+        categoryId: _selectedCategoryId,
+        search: _searchQuery,
+        limit: 20,
+      );
+      setState(() => _places = result['places'] as List<PlaceModel>);
+    } catch (_) {
+      setState(() => _places = []);
+    } finally {
+      setState(() => _loadingPlaces = false);
+    }
+  }
+
+  void _onCategoryTap(int? categoryId) {
+    setState(() => _selectedCategoryId = categoryId);
+    _loadPlaces();
+  }
+
+  void _onItemTapped(int index) {
+    if (index == 1) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const MapScreen()),
+      ).then((_) => setState(() => _selectedIndex = 0));
+      return;
+    }
+    setState(() => _selectedIndex = index);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FA), 
-      // LOGIKA TAB SWITCHING: Jika index 2 (Favorit) diklik, buka layar Favorit
-      body: _selectedIndex == 2 
-          ? const FavoriteScreen() 
-          : _buildHomeBody(), // Jika tidak, tampilkan layar beranda utama
+      backgroundColor: const Color(0xFFF8F9FA),
+      body: _selectedIndex == 2 ? const FavoriteScreen() : _buildHomeBody(),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
 
-  // Memisahkan body Home agar bisa ditukar dengan layar Favorit
   Widget _buildHomeBody() {
     return RefreshIndicator(
       color: Colors.blueAccent,
-      // Logika sementara (dummy) karena belum ada API sungguhan
-      onRefresh: () async {
-        await Future.delayed(const Duration(seconds: 1));
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Data diperbarui!')),
-        );
-      },
+      onRefresh: _loadData,
       child: SafeArea(
         child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(), // Wajib AlwaysScrollable agar bisa di-pull
+          physics: const AlwaysScrollableScrollPhysics(),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -83,8 +115,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  // --- KOMPONEN UI MODERN ---
-
   Widget _buildHeader() {
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
@@ -94,29 +124,18 @@ class _HomeScreenState extends State<HomeScreen> {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              Text(
-                'Halo, Selamat Pagi! 👋',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
+              Text('Halo, Selamat Datang! 👋',
+                  style: TextStyle(fontSize: 14, color: Colors.grey, fontWeight: FontWeight.w500)),
               SizedBox(height: 4),
-              Text(
-                'Mau nugas di mana hari ini?',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF2D3142),
-                ),
-              ),
+              Text('Mau nugas di mana hari ini?',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
             ],
           ),
           CircleAvatar(
             radius: 24,
             backgroundColor: Colors.blue[100],
-            backgroundImage: const NetworkImage('https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff'),
+            backgroundImage: const NetworkImage(
+                'https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff'),
           ),
         ],
       ),
@@ -125,32 +144,37 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSearchBar() {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 12.0),
+      padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 8.0),
       child: Container(
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withOpacity(0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.03), blurRadius: 10, offset: const Offset(0, 4))],
         ),
         child: TextField(
+          controller: _searchController,
+          onSubmitted: (val) {
+            setState(() => _searchQuery = val);
+            _loadPlaces();
+          },
           decoration: InputDecoration(
-            hintText: 'Cari workspace atau kafe...',
+            hintText: 'Cari workspace, kafe...',
             hintStyle: TextStyle(color: Colors.grey[400]),
             prefixIcon: const Icon(Icons.search_rounded, color: Colors.blueAccent),
-            suffixIcon: Container(
-              margin: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.blueAccent,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
-            ),
+            suffixIcon: _searchQuery.isNotEmpty
+                ? IconButton(
+                    icon: const Icon(Icons.close_rounded, color: Colors.grey),
+                    onPressed: () {
+                      _searchController.clear();
+                      setState(() => _searchQuery = '');
+                      _loadPlaces();
+                    },
+                  )
+                : Container(
+                    margin: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(color: Colors.blueAccent, borderRadius: BorderRadius.circular(10)),
+                    child: const Icon(Icons.tune_rounded, color: Colors.white, size: 20),
+                  ),
             border: InputBorder.none,
             contentPadding: const EdgeInsets.symmetric(vertical: 16),
           ),
@@ -164,188 +188,181 @@ class _HomeScreenState extends State<HomeScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Padding(
-          padding: EdgeInsets.fromLTRB(20, 24, 20, 16),
-          child: Text(
-            'Kategori Pilihan',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
-          ),
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 12),
+          child: Text('Kategori',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142))),
         ),
         SizedBox(
-          height: 90,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemCount: _mockCategories.length,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            itemBuilder: (context, index) {
-              return Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 60,
-                      height: 60,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.03),
-                            blurRadius: 8,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
+          height: 95,
+          child: _loadingCategories
+              ? const Center(child: CircularProgressIndicator())
+              : ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  physics: const BouncingScrollPhysics(),
+                  itemCount: _categories.length + 1,
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  itemBuilder: (context, index) {
+                    final isAll = index == 0;
+                    final cat = isAll ? null : _categories[index - 1];
+                    final isSelected = isAll ? _selectedCategoryId == null : _selectedCategoryId == cat!.id;
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 6.0),
+                      child: GestureDetector(
+                        onTap: () => _onCategoryTap(isAll ? null : cat!.id),
+                        child: Column(
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 60,
+                              height: 60,
+                              decoration: BoxDecoration(
+                                color: isSelected ? Colors.blueAccent : Colors.white,
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, 4))],
+                              ),
+                              child: Icon(
+                                isAll ? Icons.apps_rounded : _getCategoryIcon(cat!.icon),
+                                color: isSelected ? Colors.white : Colors.blueAccent,
+                                size: 26,
+                              ),
+                            ),
+                            const SizedBox(height: 6),
+                            SizedBox(
+                              width: 64,
+                              child: Text(
+                                isAll ? 'Semua' : cat!.name,
+                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600,
+                                    color: isSelected ? Colors.blueAccent : Colors.black54),
+                                textAlign: TextAlign.center,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      child: Icon(_mockCategories[index]['icon'], color: Colors.blueAccent, size: 28),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _mockCategories[index]['name'],
-                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
-                    ),
-                  ],
+                    );
+                  },
                 ),
-              );
-            },
-          ),
         ),
       ],
     );
   }
 
-    Widget _buildPlacesList() {
+  Widget _buildPlacesList() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 16),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Terdekat dari Anda',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+              Text(
+                _selectedCategoryId == null ? 'Semua Tempat' : 'Hasil Filter',
+                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
               ),
-              TextButton(
-                onPressed: () {},
-                child: const Text('Lihat Semua', style: TextStyle(color: Colors.blueAccent)),
-              )
+              if (!_loadingPlaces)
+                Text('${_places.length} tempat',
+                    style: const TextStyle(color: Colors.grey, fontSize: 13)),
             ],
           ),
         ),
-        ListView.builder(
-          physics: const NeverScrollableScrollPhysics(),
-          shrinkWrap: true,
-          itemCount: _mockPlaces.length,
-          padding: const EdgeInsets.symmetric(horizontal: 20.0),
-          itemBuilder: (context, index) {
-            final place = _mockPlaces[index];
-            
-            // TAMBAHAN: Bungkus Container dengan GestureDetector
-            return GestureDetector(
-              onTap: () {
-                // TAMBAHAN: Navigasi ke DetailScreen
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => DetailScreen(place: place),
+        if (_loadingPlaces)
+          const Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Center(child: CircularProgressIndicator()))
+        else if (_places.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: Text('Tidak ada tempat ditemukan.', style: TextStyle(color: Colors.grey))),
+          )
+        else
+          ListView.builder(
+            physics: const NeverScrollableScrollPhysics(),
+            shrinkWrap: true,
+            itemCount: _places.length,
+            padding: const EdgeInsets.symmetric(horizontal: 20.0),
+            itemBuilder: (context, index) {
+              final place = _places[index];
+              return GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DetailScreen(place: place))),
+                child: Container(
+                  margin: const EdgeInsets.only(bottom: 16.0),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 6))],
                   ),
-                );
-              },
-              child: Container(
-                margin: const EdgeInsets.only(bottom: 16.0),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(20),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
-                      blurRadius: 12,
-                      offset: const Offset(0, 6),
-                    ),
-                  ],
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(12.0),
-                  child: Row(
-                    children: [
-                      // Area Gambar Placeholder yang lebih modern
-                      Container(
-                        width: 90,
-                        height: 90,
-                        decoration: BoxDecoration(
-                          color: Colors.blue[50],
+                  child: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: Row(
+                      children: [
+                        ClipRRect(
                           borderRadius: BorderRadius.circular(16),
+                          child: place.photoUrl != null
+                              ? Image.network(place.photoUrl!, width: 90, height: 90, fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => _placeholderIcon(place))
+                              : _placeholderIcon(place),
                         ),
-                        child: const Icon(Icons.storefront_rounded, color: Colors.blueAccent, size: 40),
-                      ),
-                      const SizedBox(width: 16),
-                      // Area Teks
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: Colors.blue[50],
-                                borderRadius: BorderRadius.circular(6),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(color: Colors.blue[50], borderRadius: BorderRadius.circular(6)),
+                                child: Text(place.categoryName,
+                                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueAccent)),
                               ),
-                              child: Text(
-                                place['category'],
-                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueAccent),
+                              const SizedBox(height: 6),
+                              Text(place.name,
+                                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 4),
+                              Text(place.address,
+                                  style: TextStyle(fontSize: 12, color: Colors.grey[500]),
+                                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                              const SizedBox(height: 8),
+                              Row(
+                                children: [
+                                  const Icon(Icons.star_rounded, color: Colors.amber, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    place.rating > 0 ? place.rating.toStringAsFixed(1) : 'Baru',
+                                    style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
+                                  ),
+                                  if (place.priceRange != null) ...[
+                                    const Spacer(),
+                                    Text(place.priceRange!,
+                                        style: const TextStyle(fontSize: 12, color: Colors.blueAccent, fontWeight: FontWeight.w600)),
+                                  ],
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              place['name'],
-                              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                            const SizedBox(height: 8),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 16),
-                                const SizedBox(width: 4),
-                                Text(
-                                  place['distance'],
-                                  style: const TextStyle(fontSize: 13, color: Colors.black54, fontWeight: FontWeight.w500),
-                                ),
-                                const Spacer(),
-                                const Icon(Icons.star_rounded, color: Colors.amber, size: 18),
-                                const SizedBox(width: 4),
-                                Text(
-                                  place['rating'].toString(),
-                                  style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF2D3142)),
-                                ),
-                              ],
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-              ),
-            ); // Akhir dari GestureDetector
-          },
-        ),
-        const SizedBox(height: 24), // Spacing ekstra di bawah
+              );
+            },
+          ),
+        const SizedBox(height: 24),
       ],
+    );
+  }
+
+  Widget _placeholderIcon(PlaceModel place) {
+    return Container(
+      width: 90, height: 90, color: Colors.blue[50],
+      child: Icon(_getCategoryIcon(place.categoryIcon), color: Colors.blueAccent, size: 36),
     );
   }
 
   Widget _buildBottomNav() {
     return Container(
       decoration: BoxDecoration(
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 20,
-            offset: const Offset(0, -5),
-          ),
-        ],
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))],
       ),
       child: ClipRRect(
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
@@ -369,5 +386,20 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
       ),
     );
+  }
+
+  IconData _getCategoryIcon(String icon) {
+    switch (icon.toLowerCase()) {
+      case 'coffee': return Icons.local_cafe_rounded;
+      case 'utensils': return Icons.restaurant_rounded;
+      case 'copy': return Icons.print_rounded;
+      case 'credit-card': return Icons.local_atm_rounded;
+      case 'home': return Icons.home_rounded;
+      case 'shopping-bag': return Icons.shopping_bag_rounded;
+      case 'heart': return Icons.local_hospital_rounded;
+      case 'building': return Icons.business_rounded;
+      case 'wind': return Icons.local_laundry_service_rounded;
+      default: return Icons.storefront_rounded;
+    }
   }
 }
