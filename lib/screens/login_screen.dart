@@ -32,13 +32,18 @@ class _LoginScreenState extends State<LoginScreen> {
       final res = await _api.login(_emailCtrl.text.trim(), _passCtrl.text);
       if (!mounted) return;
       if (_api.isLoggedIn) {
-        // Selalu kembali ke halaman utama setelah login
+        // Bersihkan semua stack dan kembali ke halaman utama
         Navigator.pushNamedAndRemoveUntil(context, '/', (_) => false);
       } else {
-        _showError(res['message'] ?? 'Login gagal');
+        // Tampilkan pesan error dari API atau pesan default
+        final message = res['message'] ??
+            res['error'] ??
+            res['data']?['message'] ??
+            'Login gagal. Periksa email dan password.';
+        _showError(message.toString());
       }
-    } catch (_) {
-      _showError('Terjadi kesalahan. Coba lagi.');
+    } catch (e) {
+      _showError('Tidak dapat terhubung ke server. Coba lagi.');
     } finally {
       if (mounted) setState(() => _loading = false);
     }

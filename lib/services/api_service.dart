@@ -33,7 +33,14 @@ class ApiService {
     );
     final body = jsonDecode(res.body) as Map<String, dynamic>;
     if (res.statusCode == 200) {
-      _token = body['token'];
+      // Coba berbagai kemungkinan field token dari API
+      final token = body['token'] ??
+          body['access_token'] ??
+          body['data']?['token'] ??
+          body['data']?['access_token'];
+      if (token != null) {
+        _token = token.toString();
+      }
     }
     return body;
   }
