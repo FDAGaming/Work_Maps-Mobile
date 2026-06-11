@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:work_maps/screens/home_screen.dart'; 
-// 1. Tambahkan import untuk map_screen.dart
-import 'package:work_maps/screens/map_screen.dart'; 
+import 'package:work_maps/screens/home_screen.dart';
+import 'package:work_maps/screens/login_screen.dart';
+import 'package:work_maps/screens/map_screen.dart';
 
 
 void main() {
@@ -19,13 +19,11 @@ class WorkspaceApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
-      // 2. HAPUS properti `home: const HomeScreen(),`
-      
-      // 3. GUNAKAN sistem Routes untuk mendaftarkan semua halaman
-      initialRoute: '/', // Halaman pertama yang dibuka
+      initialRoute: '/',
       routes: {
         '/': (context) => const HomeScreen(),
-        '/map': (context) => const MapScreen(), // Rute untuk halaman peta
+        '/map': (context) => const MapScreen(),
+        '/login': (context) => const LoginScreen(),
       },
     );
   }

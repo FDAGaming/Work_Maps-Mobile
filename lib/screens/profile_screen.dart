@@ -1,12 +1,45 @@
 import 'package:flutter/material.dart';
+import '../services/api_service.dart';
+import 'login_screen.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _api = ApiService();
+  Map<String, dynamic>? _user;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUser();
+  }
+
+  Future<void> _loadUser() async {
+    final user = await _api.getMe();
+    if (mounted) setState(() { _user = user; _loading = false; });
+  }
+
+  void _logout() {
+    _api.clearToken();
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (_) => false,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
     return SafeArea(
-      child: SingleChildScrollView(
+      child: _loading
+          ? const Center(child: CircularProgressIndicator())
+          : SingleChildScrollView(
         child: Column(
           children: [
             _buildHeader(),
@@ -22,6 +55,9 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildHeader() {
+    final name = _user?['name'] ?? 'Pengguna';
+    final email = _user?['email'] ?? '-';
+    final initials = name.isNotEmpty ? name[0].toUpperCase() : 'U';
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(20, 32, 20, 28),
@@ -41,8 +77,8 @@ class ProfileScreen extends StatelessWidget {
               CircleAvatar(
                 radius: 48,
                 backgroundColor: Colors.white,
-                backgroundImage: const NetworkImage(
-                    'https://ui-avatars.com/api/?name=User&background=0D8ABC&color=fff&size=200'),
+                backgroundImage: NetworkImage(
+                    'https://ui-avatars.com/api/?name=$initials&background=0D8ABC&color=fff&size=200'),
               ),
               Container(
                 width: 28,
@@ -56,18 +92,14 @@ class ProfileScreen extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
-            'Nama Pengguna',
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
+          Text(
+            name,
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 4),
-          const Text(
-            'pengguna@email.com',
-            style: TextStyle(fontSize: 14, color: Colors.white70),
+          Text(
+            email,
+            style: const TextStyle(fontSize: 14, color: Colors.white70),
           ),
         ],
       ),
@@ -124,18 +156,18 @@ class ProfileScreen extends StatelessWidget {
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 10),
           _menuCard([
-            _MenuItem(Icons.person_outline_rounded, 'Edit Profil', Colors.blueAccent),
-            _MenuItem(Icons.lock_outline_rounded, 'Ubah Password', Colors.orange),
-            _MenuItem(Icons.notifications_outlined, 'Notifikasi', Colors.purple),
+            _MenuItem(Icons.person_outline_rounded, 'Edit Profil', Colors.blueAccent, onTap: () {}),
+            _MenuItem(Icons.lock_outline_rounded, 'Ubah Password', Colors.orange, onTap: () {}),
+            _MenuItem(Icons.notifications_outlined, 'Notifikasi', Colors.purple, onTap: () {}),
           ]),
           const SizedBox(height: 20),
           const Text('Lainnya',
               style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Colors.grey)),
           const SizedBox(height: 10),
           _menuCard([
-            _MenuItem(Icons.info_outline_rounded, 'Tentang Aplikasi', Colors.teal),
-            _MenuItem(Icons.help_outline_rounded, 'Bantuan', Colors.green),
-            _MenuItem(Icons.logout_rounded, 'Keluar', Colors.red),
+            _MenuItem(Icons.info_outline_rounded, 'Tentang Aplikasi', Colors.teal, onTap: () {}),
+            _MenuItem(Icons.help_outline_rounded, 'Bantuan', Colors.green, onTap: () {}),
+            _MenuItem(Icons.logout_rounded, 'Keluar', Colors.red, onTap: _logout),
           ]),
         ],
       ),
@@ -175,7 +207,7 @@ class ProfileScreen extends StatelessWidget {
                     )),
                 trailing: Icon(Icons.chevron_right_rounded,
                     color: Colors.grey[300], size: 20),
-                onTap: () {},
+                onTap: item.onTap,
               ),
               if (i < items.length - 1)
                 Divider(height: 1, indent: 68, color: Colors.grey[100]),
@@ -191,5 +223,6 @@ class _MenuItem {
   final IconData icon;
   final String label;
   final Color color;
-  const _MenuItem(this.icon, this.label, this.color);
+  final VoidCallback onTap;
+  const _MenuItem(this.icon, this.label, this.color, {required this.onTap});
 }
