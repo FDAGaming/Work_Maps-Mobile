@@ -5,6 +5,7 @@ import '../services/api_service.dart';
 import 'detail_screen.dart';
 import 'favorite_screen.dart';
 import 'map_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -85,11 +86,22 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _selectedIndex = index);
   }
 
+  Widget _buildBody() {
+    switch (_selectedIndex) {
+      case 2:
+        return const FavoriteScreen();
+      case 3:
+        return const ProfileScreen();
+      default:
+        return _buildHomeBody();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      body: _selectedIndex == 2 ? const FavoriteScreen() : _buildHomeBody(),
+      body: _buildBody(),
       bottomNavigationBar: _buildBottomNav(),
     );
   }
