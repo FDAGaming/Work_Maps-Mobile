@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/place_model.dart';
-import '../../models/category_model.dart';
 import '../../services/api_service.dart';
-import 'widgets/place_form_sheet.dart';
+import 'admin_edit_place_screen.dart';
 
 class AdminPlacesTab extends StatefulWidget {
   const AdminPlacesTab({super.key});
@@ -14,7 +13,6 @@ class AdminPlacesTab extends StatefulWidget {
 class _AdminPlacesTabState extends State<AdminPlacesTab> {
   final _api = ApiService();
   List<PlaceModel> _places = [];
-  List<CategoryModel> _categories = [];
   bool _loading = true;
   String? _error;
   final _searchCtrl = TextEditingController();
@@ -35,15 +33,11 @@ class _AdminPlacesTabState extends State<AdminPlacesTab> {
   Future<void> _load() async {
     setState(() { _loading = true; _error = null; });
     try {
-      final results = await Future.wait([
-        _api.getAdminPlaces(search: _search.isEmpty ? null : _search),
-        _api.getCategories(),
-      ]);
-      final placesResult = results[0] as Map<String, dynamic>;
+      final placesResult = await _api.getAdminPlaces(
+          search: _search.isEmpty ? null : _search);
       if (mounted) {
         setState(() {
           _places = placesResult['places'] as List<PlaceModel>;
-          _categories = results[1] as List<CategoryModel>;
         });
       }
     } catch (e) {
@@ -104,18 +98,15 @@ class _AdminPlacesTabState extends State<AdminPlacesTab> {
     }
   }
 
-  void _openForm({PlaceModel? place}) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => PlaceFormSheet(
-        place: place,
-        categories: _categories,
-        api: _api,
-        onSaved: _load,
+  void _openEditScreen({PlaceModel? place}) async {
+    final changed = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => AdminEditPlaceScreen(place: place),
       ),
     );
+    // Reload jika ada perubahan
+    if (changed == true) _load();
   }
 
   @override
@@ -160,7 +151,7 @@ class _AdminPlacesTabState extends State<AdminPlacesTab> {
               ),
               const SizedBox(width: 10),
               FloatingActionButton.small(
-                onPressed: () => _openForm(),
+                onPressed: () => _openEditScreen(),
                 backgroundColor: Colors.blueAccent,
                 child: const Icon(Icons.add_rounded, color: Colors.white),
               ),
@@ -293,7 +284,7 @@ class _AdminPlacesTabState extends State<AdminPlacesTab> {
                   icon: Icons.edit_outlined,
                   color: Colors.blueAccent,
                   tooltip: 'Edit',
-                  onTap: () => _openForm(place: place),
+                  onTap: () => _openEditScreen(place: place),
                 ),
                 const SizedBox(width: 6),
                 // Delete button
@@ -367,7 +358,7 @@ class _AdminPlacesTabState extends State<AdminPlacesTab> {
               style: TextStyle(color: Colors.grey, fontSize: 15)),
           const SizedBox(height: 12),
           ElevatedButton.icon(
-            onPressed: () => _openForm(),
+            onPressed: () => _openEditScreen(),
             icon: const Icon(Icons.add_rounded, color: Colors.white),
             label: const Text('Tambah Tempat',
                 style: TextStyle(color: Colors.white)),
