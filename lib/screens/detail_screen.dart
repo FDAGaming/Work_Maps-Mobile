@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
 import '../models/place_model.dart';
 import '../models/review_model.dart';
 import '../services/api_service.dart';
@@ -102,11 +103,84 @@ class _DetailScreenState extends State<DetailScreen> {
   }
 
   Future<void> _openNavigation() async {
-    final lat = _place.lat;
-    final lng = _place.lng;
-    final Uri googleMapsUrl = Uri.parse('google.navigation:q=$lat,$lng&mode=d');
-    final Uri fallbackUrl =
-        Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng');
+    final destLat = _place.lat;
+    final destLng = _place.lng;
+
+    // Tampilkan loading sementara mengambil lokasi user
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('Mengambil lokasi Anda...'),
+            ],
+          ),
+          duration: Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    // Coba ambil posisi GPS user
+    double? originLat;
+    double? originLng;
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (serviceEnabled) {
+        LocationPermission permission = await Geolocator.checkPermission();
+        if (permission == LocationPermission.denied) {
+          permission = await Geolocator.requestPermission();
+        }
+        if (permission == LocationPermission.whileInUse ||
+            permission == LocationPermission.always) {
+          final position = await Geolocator.getCurrentPosition(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              timeLimit: Duration(seconds: 5),
+            ),
+          );
+          originLat = position.latitude;
+          originLng = position.longitude;
+        }
+      }
+    } catch (_) {
+      // Jika gagal ambil lokasi, lanjutkan tanpa origin (Google Maps pakai lokasi sendiri)
+    }
+
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+
+    // Bangun URL dengan origin (jika tersedia) dan destination
+    final Uri googleMapsUrl;
+    final Uri fallbackUrl;
+
+    if (originLat != null && originLng != null) {
+      // Dengan titik asal dari GPS user
+      googleMapsUrl = Uri.parse(
+        'google.navigation:q=$destLat,$destLng&mode=d',
+      );
+      fallbackUrl = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1'
+        '&origin=$originLat,$originLng'
+        '&destination=$destLat,$destLng'
+        '&travelmode=driving',
+      );
+    } else {
+      // Tanpa titik asal — Google Maps pakai lokasi perangkat otomatis
+      googleMapsUrl = Uri.parse('google.navigation:q=$destLat,$destLng&mode=d');
+      fallbackUrl = Uri.parse(
+        'https://www.google.com/maps/dir/?api=1'
+        '&destination=$destLat,$destLng'
+        '&travelmode=driving',
+      );
+    }
+
     try {
       if (await canLaunchUrl(googleMapsUrl)) {
         await launchUrl(googleMapsUrl, mode: LaunchMode.externalApplication);
